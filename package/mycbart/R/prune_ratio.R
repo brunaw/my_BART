@@ -4,9 +4,12 @@
 #' @title Transition ratio for prune.
 #' @description Transition probability of going to the candidate tree, 
 #' given that the action step was a prune.
+#' @param old_tree The previous tree.
 #' @param tree The current tree.
 #' @param current_node The current node.
-#' @param p The number of predictors still available. 
+#' @param p The number of available predictors.
+#' @param var_in_prune The variable that was split in the node chosen to
+#' be pruned.  
 #' @return The transition ratio 
 #' @details When transitioning to a prune, we need the probabilities of:
 #' 1. Pruning the tree
@@ -19,10 +22,14 @@
 #' @example
 #' transition_ratio_prune(tree, current_node) 
 
-transition_ratio_prune <- function(tree, current_node, p = ncol(X)){
+transition_ratio_prune <- function(old_tree, 
+                                   tree, current_node, p, 
+                                   var_in_prune){
+  p_grow = 0.5
+  p_prune = 0.5
   # Number of available final nodes to prune -------
-  b <-  tree %>% distinct(node_index) %>% nrow()
-  # Number of internal node  -----------------------
+  b <-  old_tree %>% dplyr::distinct(node_index) %>% nrow()
+  # Number of internal nodes  -----------------------
   w_2 <-  b - 1
   # Probability of pruning -------------------------
   p_t_to_tstar <- p_prune/w_2
@@ -31,9 +38,11 @@ transition_ratio_prune <- function(tree, current_node, p = ncol(X)){
   p_adj <- p
   
   # Available values to split ----------------------
-  n_j_adj <-  tree %>% 
+  # Using the variable that was used in the node 
+  # selected for prune
+  n_j_adj <-  old_tree %>% 
     dplyr::filter(parent == current_node) %>% 
-    distinct(!!sym(selec_var[i])) %>% nrow()
+    dplyr::distinct(!!rlang::sym(var_in_prune)) %>% nrow()
   
   # Probability of transitioning from the new tree
   # to the old one --------------------------------
@@ -50,10 +59,12 @@ transition_ratio_prune <- function(tree, current_node, p = ncol(X)){
 #' @title Likelihood ratio for prune.
 #' @description Likelihood ratio of the candidate tree and the previous 
 #' tree, given that the action step was a prune.
+#' @param old_tree The previous tree.
 #' @param tree The current tree.
 #' @param current_node The current pruned node.
 #' @param sigma_2_y The current value of sigma^2 for y.
 #' @param sigma_2_mu The current valur of sigma^2_mu. 
+#' @param nodes_to_prune The nodes to prune. 
 #' @return The likelihood ratio. 
 #' @details For the likelihood ratio of the new pruned tree, we need 
 #' to calculate an inversion of the one in the grow version. 
@@ -63,23 +74,35 @@ transition_ratio_prune <- function(tree, current_node, p = ncol(X)){
 #' lk_ratio_prune(tree, current_node, sigma_2_y, sigma_2_mu)
 
 
-lk_ratio_prune <- function(tree, current_node, sigma_2_y, sigma_2_mu){
+lk_ratio_prune <- function(old_tree, 
+                           tree, current_node, sigma_2_y, sigma_2_mu, nodes_to_prune){
   
-  filtered_tree <- tree %>% filter(parent == current_node)
+  filtered_tree <- old_tree %>% 
+    dplyr::filter(stringr::str_detect(node, nodes_to_prune)) %>% 
+    dplyr::mutate(node = 
+                    ifelse(
+                      stringr::str_detect(node, paste0(nodes_to_prune, " left")), 
+                      paste0(nodes_to_prune, " left"), 
+                      paste0(nodes_to_prune, " right")
+                    )
+    )
   
   # The first node is on the left, the second is on the right,
   # meaning that the left node has the smaller index --------
   
   # Counting how many observations are in each 
   # region (left and right) ---------------------------------
-  nl_nr <-  filtered_tree %>% count(node_index) %>% arrange(n) %>% pull(n) 
+  nl_nr <-  filtered_tree %>% 
+    dplyr::count(node_index) %>% 
+    dplyr::arrange(n) %>% 
+    dplyr::pull(n) 
   
   # Calculating the sums of y in each region ----------------
   sums_nodes <- filtered_tree %>% 
-    group_by(node_index) %>% 
-    summarise(sum = sum(y)) %>% 
-    arrange(node_index) %>% 
-    pull(sum)
+    dplyr::group_by(node_index) %>% 
+    dplyr::summarise(sum = sum(y)) %>% 
+    dplyr::arrange(node_index) %>% 
+    dplyr::pull(sum)
   
   # Calculating the equation of the lk. ratio ---------------
   first_term <- log(sqrt(
@@ -115,8 +138,12 @@ lk_ratio_prune <- function(tree, current_node, sigma_2_y, sigma_2_mu){
 #' @title Tree structure ratio for prune.
 #' @description Tree structure ratio of the candidate tree and 
 #' the previous tree, given that the action step was a prune.
+#' @param old_tree The previous tree.
 #' @param tree The current tree.
 #' @param current_node The current pruned node.
+#' @param var_in_prune The variable that was split in the node chosen to
+#' be pruned. 
+#' @param p The number of available predictors.
 #' @return The tree structure ratio. 
 #' @details For the tree structure ratio of the new pruned tree, we need 
 #' to calculate an inversion of the tree structure ratio for the grow. 
@@ -128,24 +155,24 @@ lk_ratio_prune <- function(tree, current_node, sigma_2_y, sigma_2_mu){
 #' @example 
 #' structure_ratio_prune(tree, current_node)
 
-structure_ratio_prune <- function(tree, current_node){
+structure_ratio_prune <- function(old_tree, tree, current_node, 
+                                  var_in_prune, p){
   
   # Finding the probability of selecting one
   # available predictor -------------------------------------
-  p <-  ncol(X)
   p_adj <- 1/p
   
   # Counting the distinct rule options from
-  # this available predictor -------------------------------
-  n_j_adj <-  tree %>% 
-    filter(parent == current_node) %>% 
-    distinct(!!sym(selec_var[i])) %>% nrow()
+  # the pruned predictor ----------------------------------
+  n_j_adj <-  old_tree %>% 
+    dplyr::filter(parent == current_node) %>% 
+    dplyr::distinct(!!rlang::sym(var_in_prune)) %>% nrow()
   
   # Calculating the probability of the chosen rule --------
   p_rule <- p_adj * (1/n_j_adj)
   
   # Calculating the probability of split
-  terminal_nodes <- tree %>% distinct(node_index) %>% nrow()
+  terminal_nodes <- old_tree %>% dplyr::distinct(node_index) %>% nrow()
   p_split <- 1/terminal_nodes
   
   p_t <- ((1-p_split)^2)*p_split*p_rule
@@ -164,21 +191,28 @@ structure_ratio_prune <- function(tree, current_node){
 #' @title Final ratio for a prune step.
 #' @description The final ratio is to be used as the acceptance 
 #' criteria in the MCMC of the b-cart model.
+#' @param old_tree The previous tree.
 #' @param tree The current tree.
 #' @param current_node The current pruned node.
 #' @param sigma_2_y The current value of sigma^2 for y.
 #' @param sigma_2_mu The current valur of sigma^2_mu. 
 #' @param p The number of available predictors
+#' @param var_in_prune The variable that was split in the node chosen to
+#' be pruned. 
+#' @param nodes_to_prune The nodes to prune. 
 #' @return The final ratio for the candidate tree. 
 #' @example 
 #' ratio_prune(tree, current_node, sigma_2_mu, sigma_2)
 
-ratio_prune <- function(tree, current_node, sigma_2_mu, 
-                         sigma_2_y, p = ncol(X)){
+ratio_prune <- function(old_tree, tree, current_node, sigma_2_mu, 
+                         sigma_2_y, p, var_in_prune, nodes_to_prune){
   # All ratios:
-  trans <- transition_ratio_prune(tree, current_node)
-  lk <- lk_ratio_prune(tree, current_node, sigma_2_y, sigma_2_mu)
-  struct <- structure_ratio_prune(tree, current_node)
+  trans <- transition_ratio_prune(old_tree, tree, current_node, 
+                                  var_in_prune = var_in_prune, p = p)
+  lk <- lk_ratio_prune(old_tree, tree, current_node, sigma_2_y, sigma_2_mu, 
+                       nodes_to_prune = nodes_to_prune)
+  struct <- structure_ratio_prune(old_tree, tree, current_node, var_in_prune, 
+                                  p = p)
   
   r <- min(1, exp(trans+lk+struct))
   return(r)
