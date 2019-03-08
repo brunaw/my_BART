@@ -4,12 +4,14 @@
 \alias{bcart}
 \title{B-CART model.}
 \usage{
-bcart(formula, data)
+bcart(formula, data, iter = 5000)
 }
 \arguments{
 \item{formula}{The model formula.}
 
 \item{data}{The data to be used in the modeling.}
+
+\item{iter}{The number of iterations for the MCMC.}
 }
 \value{
 A list containing:

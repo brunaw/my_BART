@@ -5,6 +5,7 @@
 #' @description This function runs a B-CART model and ...
 #' @param formula The model formula.  
 #' @param data The data to be used in the modeling.
+#' @param iter The number of iterations for the MCMC. 
 #' @return A list containing:
 #'  sigma^2_y, the current errors, the final tree, the
 #'  ratios used in the MCMC step and the uniform values sampled. 
@@ -121,11 +122,18 @@ bcart <- function(formula, data, iter = 5000){
   mu_vec <- vector()           # To save the sampled mus
   
   errors <- vector()          # To save the value of the errors used in
-  parent <- vector()          # the posterior of sigma
+  parent_action <- vector()          # the posterior of sigma
+  
+  results <- list()
+  results[[1]] <- data.frame(node = NA, var = NA, rule = NA)
+  verif <- list()
   #---------------------------------------------------------------------
+  # A simple progress bar 
   pb <- progress::progress_bar$new(
     format = "  Iterations of the BCART model [:bar]  :current/:total (:percent)",
     clear = FALSE, width = 60, total = iter)
+  
+  
   # Loop to perform the BCART model 
   for(i in 1:iter){
     # Sampling a number from the uniform distribution
@@ -178,14 +186,25 @@ bcart <- function(formula, data, iter = 5000){
         # If all nodes don't have the minimum of observations, 
         # just keep the previous tree 
         my_trees[[i + 1]] <- my_trees[[i]]
+        results[[i+1]] <- results[[i]]
       } else{
+        
         
         # Saving the parent of the new node to use in the 
         # calculation of the transition ratio
-        parent[i] <- my_trees[[i + 1]] %>% 
+        parent_action[i] <- my_trees[[i + 1]] %>% 
           dplyr::filter(parent == drawn_node[i]) %>% 
           dplyr::distinct(parent) %>% 
           dplyr::pull(parent)
+        
+        results[[i+1]] <- suppressWarnings(
+          dplyr::bind_rows(stats::na.omit(results[[i]]), 
+                           data.frame(
+                             node = parent_action[i], 
+                             var = selec_var[i], 
+                             rule = rule[i])) 
+        )
+        
         
         # Calculating the acceptance ratio for the grow, 
         # which uses the ratios of: 
@@ -194,13 +213,13 @@ bcart <- function(formula, data, iter = 5000){
         # 3. The probability of the tree structures
         
         r[i] <- mybcart::ratio_grow(tree = my_trees[[i + 1]], 
-                                    current_node =  parent[i],
+                                    current_node =  parent_action[i],
                                     sigma_2_mu = (sd_mu^2), 
                                     sigma_2_y =  sigma_2[i], 
                                     current_selec_var = selec_var[i],
                                     p = ncol(X))
         
-      }
+      } 
       # Should we prune the tree?
     } else if(k[i] >  p_grow && depths > 0){
       
@@ -216,7 +235,7 @@ bcart <- function(formula, data, iter = 5000){
                                                    'X[0-9][^X[0-9]]*$') %>% 
         stringr::str_remove(" left| right")
       # Updating the node that will suffer the prune (returning
-      # to the point where is was before the growing)
+      # to the point where it was before the growing)
       new_node <- nodes_to_prune %>% stringr::str_remove('( X[0-9])$')
       
       my_trees[[i + 1]] <- my_trees[[i]] %>% 
@@ -236,7 +255,7 @@ bcart <- function(formula, data, iter = 5000){
           
           # Changing the node for the new_node (with the pruning) 
           temp_node = ifelse(
-            stringr::str_detect(node, nodes_to_prune), new_node, node),  
+            stringr::str_detect(node, nodes_to_prune), paste(new_node), node),  
           
           # Removing from the new_node the last occurrence of the name of 
           # a variable + the side of the node, to update the parent
@@ -254,10 +273,15 @@ bcart <- function(formula, data, iter = 5000){
       
       # Saving the node that was pruned to use in the 
       # calculation of the transition ratio
-      parent[i] <- my_trees[[i]] %>% 
+      parent_action[i] <- my_trees[[i]] %>% 
         dplyr::filter(node == drawn_node[i]) %>% 
         dplyr::distinct(parent) %>% 
         dplyr::pull(parent)
+      
+      parent_prune <- stringr::str_remove(parent_action[i], '( right| left)$')
+      
+      results[[i+1]] <- results[[i]] %>% 
+        dplyr::filter(!stringr::str_detect(node, parent_prune))
       
       # Calculating the acceptance ratio for the prune, 
       # which uses the ratios of: 
@@ -267,7 +291,7 @@ bcart <- function(formula, data, iter = 5000){
       
       r[i] <- mybcart::ratio_prune(old_tree = my_trees[[i]],
                                    tree = my_trees[[i + 1]], 
-                                   current_node =  parent[i],
+                                   current_node =  parent_action[i],
                                    var_in_prune = variable_in_question, 
                                    sigma_2_mu = (sd_mu^2), 
                                    sigma_2_y =  sigma_2[i], 
@@ -277,6 +301,7 @@ bcart <- function(formula, data, iter = 5000){
       # Should we stay in the same tree?   
     } else {
       my_trees[[i + 1]] <- my_trees[[i]]
+      results[[i+1]] <- results[[i]]
     }
     
     # Checking if the tree will be accepted or not ---------------------
@@ -290,6 +315,7 @@ bcart <- function(formula, data, iter = 5000){
       # from a uniform distributioon
       if(u[i] >= r[i]){
         my_trees[[i + 1]] <- my_trees[[i]] 
+        results[[i+1]] <- results[[i]]
       }
     }
     
@@ -362,7 +388,12 @@ of:", errors[i-1], "and a final posterior variance of:", sigma_2[i-1],
     final_tree = my_trees[[i-1]],
     ratios = r,
     samp_unif = u,
+    nodes = drawn_node,
+    action_taken = action_taken,
     selec_var = selec_var,
-    selec_rule = rule
+    selec_rule = rule,
+    results = results[[i]], 
+    mu = mu[[i-1]], 
+    model_formula = formula
   ))
 }
