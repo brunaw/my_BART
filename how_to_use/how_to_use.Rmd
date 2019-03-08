@@ -1,0 +1,163 @@
+---
+title: "How to use the `mybcart` package"
+author: Bruna Wundervald
+date: March, 2019
+bibliography: bibliography.bib
+output: pdf_document
+editor_options: 
+  chunk_output_type: console
+header-includes: \usepackage{float}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, 
+                      cache = FALSE,
+                      message = FALSE,
+                      warning = FALSE, 
+                      fig.pos="H")
+```
+
+The `mybcart` package is a very slow implementation of the Bayesian 
+CART model, made mostly with functions of the `tidyverse` collection
+of packages. The package can be installed from GitHub with:
+
+```{r, eval = FALSE}
+devtools::install_github("brunaw/my_BART", subdir = "package/mybcart")
+```
+
+
+After that, a list of the available functions can be obtained with:
+
+```{r}
+library(mybcart)
+ls("package:mybcart")
+```
+
+
+## Brief description of the functions
+
+There are 11 functions in the package (besides the `%>%` and the
+Friedman data), that can be described as: 
+
+  - `bcart`: a function that receives a formula, the data and the 
+  number of iterations to build the model, and depends on: 
+    - `lk_ratio_grow`: Calculates the likelihood ratio of a grow step;
+    - `lk_ratio_prune`: Calculates the likelihood ratio of a prune step;
+    - `structure_ratio_grow`: Calculates the tree structure ratio of a grow step;
+    - `structure_ratio_prune`: Calculates the tree structure ratio of a prune step;
+    - `transition_ratio_grow`: Calculates the transition ratio of a grow step;
+    - `transition_ratio_prune`: Calculates the transition ratio of a prune step;
+    - `ratio_grow`: Combines the tree ratios of a grow step, to calculate the final 
+    acceptance value for the MCMC; 
+    - `ratio_prune`: Combines the tree ratios of a prune step, to calculate the final 
+    acceptance value for the MCMC; 
+    - `p_rule`: A function that selects the splitting rule in a grow step, 
+    given a variable uniformly selected. 
+    
+  - `predict_bcart`: A function that performs the prediction for a 
+  `bcart` model, by receiveing the model and the new data. 
+  
+More details about each function can be found in their documentation 
+inside the package, 
+as well as the details for the ratios and the model should be found
+in the maths file. The `bcart` function will return a list containing: 
+
+  - `sigma_2`: The posterior values for $\sigma^2_{y}$;
+  -  `errors`: The sum of the squared residuals calculated for
+  each iteration of the model;
+  - `final_tree`: The final tree;
+  - `ratios`: The calculated ratios in each step; 
+  - `samp_unif`: The uniform values sampled to used in the MCMC; 
+  - `nodes`: The nodes, which were grown or pruned, used in each 
+  iteration of the model. 
+  - `action_taken`: The action (prune, grow or nothing) taken
+  in each iteration. 
+  - `results`: The order in which the growing happened for the
+  final tree; 
+  - `mu`: The values for $\mathbf{\mu}$ for the final tree, 
+  used in the prediction function. 
+  - `model_formula`: The model formula, used in the prediction
+  function. 
+  
+## The Friedman data
+
+The package also contains some data to be used with the model.
+The data was simulated using the model equation proposed in 
+(@Friedman1991). We simulated a response variable $Y$ and its 
+relationship to a matrix of predictors $\mathbf{X}$ as
+
+\begin{equation}
+y_i = 10 sin(\pi x_{i1} x_{i2}) + 20 (x_{i3} -
+0.5)^{2} + 10 x_{i4} + 5 x_{i5} +
+ \epsilon_i, \thinspace
+\epsilon_i \stackrel{iid}\sim N(0, \sigma^2),
+\end{equation}
+
+where $\mathbf{X} \in [0, 1]$, meaning that the predictors
+were randomly drawn from a standard Uniform distribution.  
+
+## How to use it 
+
+The following code show how to actually use the functions, starting by
+gathering the data, running the model and checking it, and 
+using the prediction function. 
+
+```{r}
+library(tidyverse)
+
+# Gathering the data and separating in train and test 
+data <- mybcart::friedman_data %>% 
+  mutate(set = ifelse(runif(nrow(.)) > 0.8, "test", "train"))
+
+train <- data %>% filter(set == "train") %>% select(-set)
+
+# Running the model
+bcart_model <- mybcart::bcart(formula = y ~ ., data = train, iter = 200)
+str(bcart_model)
+```
+
+```{r, fig.cap="Chain for $\\sigma^{2}$ and density of sum of squared errors for a B-CART model run with 200 iterations", fig.align='center', fig.width=7, fig.height=3.5}
+# Checking some results of the model
+library(patchwork)
+p1 <- data.frame(sig = bcart_model$sigma_2,
+           ind = 1:201) %>% 
+  ggplot(aes(ind, sig)) +
+  geom_line(size = 0.30) +
+  labs(x = "Iterations", 
+       y = expression("Posterior values of"~sigma[y]^{2})) +
+  theme_bw()
+
+
+p2 <- data.frame(err = bcart_model$errors) %>% 
+  ggplot(aes(err)) +
+  geom_density(fill = "sienna1") +
+  labs(x = "Sum of squared errors", 
+       y = "Density") + 
+  theme_bw()
+
+p1 + p2 + plot_layout(nrow = 1)
+```
+
+```{r}
+# Using the prediction function 
+test <- data %>% filter(set == "test") %>% select(-set)
+pred <- predict_bcart(model = bcart_model, newdata = test)
+
+pred %>% 
+  group_by(node) %>% 
+  summarise(ssr = sum((y - prediction)^2),
+            mean_of_y = mean(y), 
+            mu_prediction = mean(prediction))
+```
+  
+## Regex dictionary 
+
+Some regular expression were used in the pruning part of the model. They can 
+be described as:
+
+  - `'( right| left)$'`: detects the last "right" or "left";
+  - `'X[0-9][^X[0-9]]*$'`: detects the last X followed by a number;
+  - `'(?<='something'\\s).*'`: detects everything after the "something";
+  - `'( X[0-9] right| X[0-9] left)$'`: detects the 
+  last X followed by a number and a "left" or "right";
+  
