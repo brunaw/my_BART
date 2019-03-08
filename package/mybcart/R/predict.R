@@ -21,9 +21,8 @@ predict_bcart <- function(model, newdata){
   
   res <- model$results %>% dplyr::mutate_if(is.factor, as.character)
   newdata$node <- "root"
-  newdata$parent <- "root"
   pred <- newdata
-  
+
   # Creating the nodes in the newdata
   for(i in 1:nrow(res)){
     
@@ -32,17 +31,16 @@ predict_bcart <- function(model, newdata){
                       ifelse(node == res$node[i], 
                              ifelse(!!rlang::sym(res$var[i]) > res$rule[i],
                                     paste(node, res$var[i], "left"), 
-                                    paste(node, res$var[i], "right")), node))
-    
+                                    paste(node, res$var[i], "right")),
+                             node))
   }
   # Inserting the mu's and returning the data.frame
-  nodes_mu <- data.frame(node = pred %>% 
-                           dplyr::arrange(node) %>% 
-                           dplyr::distinct(node),
-                         prediction = model$mu)
+  nodes_and_mus <- data.frame(node = model$final_tree %>% 
+                                dplyr::distinct(node) %>% 
+                                dplyr::arrange(node) ,
+                              prediction = model$mu)
   
   pred <- pred %>% 
-    dplyr::left_join(nodes_mu, by = "node") 
+    dplyr::left_join(nodes_and_mus, by = "node") 
   return(pred)
 }
-

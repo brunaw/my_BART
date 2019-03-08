@@ -390,8 +390,6 @@ of:", errors[i-1], "and a final posterior variance of:", sigma_2[i-1],
     samp_unif = u,
     nodes = drawn_node,
     action_taken = action_taken,
-    selec_var = selec_var,
-    selec_rule = rule,
     results = results[[i]], 
     mu = mu[[i-1]], 
     model_formula = formula
