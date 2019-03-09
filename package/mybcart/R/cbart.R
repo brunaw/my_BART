@@ -126,7 +126,7 @@ bcart <- function(formula, data, iter = 5000){
   
   results <- list()
   results[[1]] <- data.frame(node = NA, var = NA, rule = NA)
-  verif <- list()
+  mu_res <- list()
   #---------------------------------------------------------------------
   # A simple progress bar 
   pb <- progress::progress_bar$new(
@@ -354,6 +354,14 @@ bcart <- function(formula, data, iter = 5000){
     # Resetting the auxiliar vectors 
     sigma_mu_post = mu_mu_post = mu_vec = vector()
     
+    mu_res[[i]] <- my_trees[[i + 1]] %>% 
+      dplyr::distinct(node) %>% 
+      dplyr::arrange(node) %>% 
+      dplyr::mutate(mu_samp = mu[[i + 1]]) %>% 
+      dplyr::right_join(my_trees[[i + 1]], by = "node") %>% 
+      dplyr::group_by(node) %>% 
+      dplyr::summarise(mu = mean(mu_samp))
+    
     # Sampling from the posterior distribution of sigma^2_y
     
     # Calculating the sum of squares, given the current values 
@@ -379,7 +387,8 @@ bcart <- function(formula, data, iter = 5000){
 # ----------------------------------------------------------  
 The tree has finished growing, with a final error 
 of:", errors[i-1], "and a final posterior variance of:", sigma_2[i-1], 
-"\nThe minimum node depth is", min(my_trees[[i-1]]$d), "and the maximum is ", max(my_trees[[i-1]]$d),   
+"\nThe minimum node depth is", min(my_trees[[i-1]]$d), "and the maximum is ",
+max(my_trees[[i-1]]$d),   
 '\n# ---------------------------------------------------------- ') 
   
   return(list(
@@ -391,7 +400,7 @@ of:", errors[i-1], "and a final posterior variance of:", sigma_2[i-1],
     nodes = drawn_node,
     action_taken = action_taken,
     results = results[[i]], 
-    mu = mu[[i-1]], 
+    mu = mu_res[[i-1]], 
     model_formula = formula
   ))
 }
