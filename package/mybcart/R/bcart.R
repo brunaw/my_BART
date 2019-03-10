@@ -2,13 +2,16 @@
 #' @author Bruna Wundervald, \email{brunadaviesw@gmail.com}.
 #' @export
 #' @title B-CART model. 
-#' @description This function runs a B-CART model and ...
+#' @description This function runs a BCART model and returns the tree and 
+#' other results obtained in the last iteration of the MCMC.  
 #' @param formula The model formula.  
 #' @param data The data to be used in the modeling.
 #' @param iter The number of iterations for the MCMC. 
 #' @return A list containing:
 #'  sigma^2_y, the current errors, the final tree, the
-#'  ratios used in the MCMC step and the uniform values sampled. 
+#' ratios used in the MCMC step and the uniform values sampled, 
+#  the action taken at each step, the "path" go the final tree, 
+#' the final vector of mus and the model formula. 
 #' @details 
 #' Priors used ----------------------------------------------------------
 #' sigma^2 ~ InvGamma(nu/2, lambda*nu/2), with
