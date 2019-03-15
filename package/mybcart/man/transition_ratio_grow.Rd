@@ -4,7 +4,7 @@
 \alias{transition_ratio_grow}
 \title{Transition ratio for grow.}
 \usage{
-transition_ratio_grow(tree, current_node, p, current_selec_var)
+transition_ratio_grow(tree, current_node, p, current_selec_var, results)
 }
 \arguments{
 \item{tree}{The current tree.}
@@ -14,6 +14,9 @@ transition_ratio_grow(tree, current_node, p, current_selec_var)
 \item{p}{The number of predictors still available.}
 
 \item{current_selec_var}{The variable selected for the split.}
+
+\item{results}{The current results to find the number of second
+generation internal nodes.}
 }
 \value{
 The transition ratio

@@ -220,7 +220,8 @@ bcart <- function(formula, data, iter = 5000){
                                     sigma_2_mu = (sd_mu^2), 
                                     sigma_2_y =  sigma_2[i], 
                                     current_selec_var = selec_var[i],
-                                    p = ncol(X))
+                                    p = ncol(X), 
+                                    results = results[[i]])
         
       } 
       # Should we prune the tree?
@@ -299,7 +300,8 @@ bcart <- function(formula, data, iter = 5000){
                                    sigma_2_mu = (sd_mu^2), 
                                    sigma_2_y =  sigma_2[i], 
                                    p = ncol(X), 
-                                   nodes_to_prune = nodes_to_prune)
+                                   nodes_to_prune = nodes_to_prune, 
+                                   results = results[[i]])
       
       # Should we stay in the same tree?   
     } else {

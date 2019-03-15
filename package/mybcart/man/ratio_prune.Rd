@@ -5,7 +5,7 @@
 \title{Final ratio for a prune step.}
 \usage{
 ratio_prune(old_tree, tree, current_node, sigma_2_mu, sigma_2_y, p,
-  var_in_prune, nodes_to_prune)
+  var_in_prune, nodes_to_prune, results)
 }
 \arguments{
 \item{old_tree}{The previous tree.}
@@ -24,6 +24,9 @@ ratio_prune(old_tree, tree, current_node, sigma_2_mu, sigma_2_y, p,
 be pruned.}
 
 \item{nodes_to_prune}{The nodes to prune.}
+
+\item{results}{The current results to find the number of second
+generation internal nodes.}
 }
 \value{
 The final ratio for the candidate tree.

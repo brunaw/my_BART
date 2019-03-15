@@ -10,6 +10,8 @@
 #' @param p The number of available predictors.
 #' @param var_in_prune The variable that was split in the node chosen to
 #' be pruned.  
+#' @param results The current results to find the number of second
+#' generation internal nodes. 
 #' @return The transition ratio 
 #' @details When transitioning to a prune, we need the probabilities of:
 #' 1. Pruning the tree
@@ -24,13 +26,13 @@
 
 transition_ratio_prune <- function(old_tree, 
                                    tree, current_node, p, 
-                                   var_in_prune){
+                                   var_in_prune, results){
   p_grow = 0.5
   p_prune = 0.5
   # Number of available final nodes to prune -------
   b <-  old_tree %>% dplyr::distinct(node_index) %>% nrow()
   # Number of internal nodes  -----------------------
-  w_2 <-  b - 1
+  w_2 <-  nrow(results)
   # Probability of pruning -------------------------
   p_t_to_tstar <- p_prune/w_2
 
@@ -200,15 +202,19 @@ structure_ratio_prune <- function(old_tree, tree, current_node,
 #' @param var_in_prune The variable that was split in the node chosen to
 #' be pruned. 
 #' @param nodes_to_prune The nodes to prune. 
+#' @param results The current results to find the number of second
+#' generation internal nodes. 
 #' @return The final ratio for the candidate tree. 
 #' @example 
 #' ratio_prune(tree, current_node, sigma_2_mu, sigma_2)
 
 ratio_prune <- function(old_tree, tree, current_node, sigma_2_mu, 
-                         sigma_2_y, p, var_in_prune, nodes_to_prune){
+                         sigma_2_y, p, var_in_prune, nodes_to_prune, 
+                        results){
   # All ratios:
   trans <- transition_ratio_prune(old_tree, tree, current_node, 
-                                  var_in_prune = var_in_prune, p = p)
+                                  var_in_prune = var_in_prune,
+                                  p = p, results = results)
   lk <- lk_ratio_prune(old_tree, tree, current_node, sigma_2_y, sigma_2_mu, 
                        nodes_to_prune = nodes_to_prune)
   struct <- structure_ratio_prune(old_tree, tree, current_node, var_in_prune, 

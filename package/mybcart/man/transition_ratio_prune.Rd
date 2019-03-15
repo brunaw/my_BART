@@ -4,7 +4,8 @@
 \alias{transition_ratio_prune}
 \title{Transition ratio for prune.}
 \usage{
-transition_ratio_prune(old_tree, tree, current_node, p, var_in_prune)
+transition_ratio_prune(old_tree, tree, current_node, p, var_in_prune,
+  results)
 }
 \arguments{
 \item{old_tree}{The previous tree.}
@@ -17,6 +18,9 @@ transition_ratio_prune(old_tree, tree, current_node, p, var_in_prune)
 
 \item{var_in_prune}{The variable that was split in the node chosen to
 be pruned.}
+
+\item{results}{The current results to find the number of second
+generation internal nodes.}
 }
 \value{
 The transition ratio

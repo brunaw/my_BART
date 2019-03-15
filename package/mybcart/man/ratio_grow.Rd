@@ -4,7 +4,8 @@
 \alias{ratio_grow}
 \title{Final ratio for a growth step.}
 \usage{
-ratio_grow(tree, current_node, sigma_2_mu, sigma_2_y, p, current_selec_var)
+ratio_grow(tree, current_node, sigma_2_mu, sigma_2_y, p, current_selec_var,
+  results)
 }
 \arguments{
 \item{tree}{The current tree.}
@@ -18,6 +19,9 @@ ratio_grow(tree, current_node, sigma_2_mu, sigma_2_y, p, current_selec_var)
 \item{p}{The number of available predictors}
 
 \item{current_selec_var}{The variable selected for the split.}
+
+\item{results}{The current results to find the number of second
+generation internal nodes.}
 }
 \value{
 The final ratio for the candidate tree.

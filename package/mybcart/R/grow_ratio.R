@@ -8,6 +8,8 @@
 #' @param current_node The current node.
 #' @param p The number of predictors still available. 
 #' @param current_selec_var The variable selected for the split. 
+#' @param results The current results to find the number of second
+#' generation internal nodes. 
 #' @return The transition ratio 
 #' @details When transitioning to a grow, we need the probabilities of:
 #'  1. Growing the tree
@@ -21,7 +23,7 @@
 #' transition_ratio_grow(tree, current_node) 
 
 transition_ratio_grow <- function(tree, current_node, p, 
-                                  current_selec_var){
+                                  current_selec_var, results){
   
   p_grow = 0.5
   p_prune = 0.5
@@ -43,7 +45,7 @@ transition_ratio_grow <- function(tree, current_node, p,
   
   #  Probability of transitioning from the new tree
   # back to the original -------------------------
-  w_2 <-  b - 1
+  w_2 <-  nrow(results)
   p_tstar_to_t <- p_prune/w_2
   
   trans_ratio <- log(p_t_to_tstar/p_tstar_to_t)
@@ -176,15 +178,19 @@ structure_ratio_grow <- function(tree, current_node,
 #' @param sigma_2_mu The current valur of sigma^2_mu. 
 #' @param p The number of available predictors
 #' @param current_selec_var The variable selected for the split. 
+#' @param results The current results to find the number of second
+#' generation internal nodes. 
 #' @return The final ratio for the candidate tree. 
 #' @example 
 #' ratio_grow(tree, current_node, sigma_2_mu, sigma_2)
 
 ratio_grow <- function(tree, current_node, sigma_2_mu, 
-                         sigma_2_y, p, current_selec_var){
+                       sigma_2_y, p, current_selec_var, 
+                       results){
   # All ratios:
   trans <- transition_ratio_grow(tree, current_node, 
-                                 current_selec_var = current_selec_var, p = p)
+                                 current_selec_var = current_selec_var,
+                                 p = p, results = results)
   lk <- lk_ratio_grow(tree, current_node, sigma_2_y, sigma_2_mu)
   struct <- structure_ratio_grow(tree, current_node, 
                                  current_selec_var = current_selec_var,  p = p)
